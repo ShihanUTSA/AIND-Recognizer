@@ -215,8 +215,9 @@ class SelectorCV(ModelSelector):
         
         '''Number of folds. Must be at least 2. If only 1 sequence provided, then
            that full dataset is used for both train and test'''
-        n_splits=min(len(self.sequences),3)    
-        split_method = KFold(n_splits=n_splits)
+        n_splits=min(len(self.sequences),3)
+        if n_splits>1:
+            split_method = KFold(n_splits=n_splits)
         
         
         ''' Loop over number of hidden states '''
