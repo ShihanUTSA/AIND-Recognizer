@@ -76,44 +76,36 @@ class SelectorBIC(ModelSelector):
         """
         warnings.filterwarnings("ignore", category=DeprecationWarning)
         
-        # initialize variables with score being the largest possible number
+        ''' At the begining best_score and best_model '''
         best_score= float("inf")
         best_model= None
 
-        # get other attributes we need for BIC calculation
-        num_features= len(self.X[0])
-        N= np.sum(self.lengths)
+        ''' Get number of features '''
+        n_features= len(self.X[0])
+        ''' Total num of points = summation of all the sequences '''
+        N =  np.sum(self.lengths)
         logN= np.log(N)
 
-        for component_num in range(self.min_n_components, self.max_n_components + 1):
+        for compo_num in range(self.min_n_components, self.max_n_components + 1):
             try:
+                ''' Calculating the GaussianHMM model and loglikelihood.'''
+                new_model= self.base_model(compo_num) 
+                logL= new_model.score(self.X, self.lengths)
 
-                # get model and log likelihood
-                model= self.base_model(component_num) #GaussianHMM
-                logL= model.score(self.X, self.lengths)
+                ''' Calculate parameters and BIC'''
+                p= (compo_num**2) + 2 * n_features * compo_num - 1
+                BIC= -2 * logL + p * logN
 
-                # calculate parameters
-                p= (component_num**2) + 2 * num_features * component_num - 1
-
-                # calculate BIC
-                score= -2 * logL + p * logN
-
-                # update score and model that generated score
-                if score < best_score:
-                    best_score= score
-                    best_model= model
+                '''Updating the score and model according to generated values '''    
+                if BIC < best_score:
+                    best_score = BIC
+                    best_model = new_model
 
             except:
-                #print("failure on {} @ {}".format(self.this_word, component_num))
                 pass
 
         return best_model
-        
-
-        # TODO implement model selection based on BIC scores
-        #raise NotImplementedError
-        
-
+                
 
 class SelectorDIC(ModelSelector):
     ''' select best model based on Discriminative Information Criterion
@@ -128,49 +120,17 @@ class SelectorDIC(ModelSelector):
         warnings.filterwarnings("ignore", category=DeprecationWarning)
         
             
-        best_score = float("-inf")
-        best_model = None
-        num_features = self.X.shape[1]
-        for i_components in range(self.min_n_components, self.max_n_components + 1):
-            try:
-                new_model = self.base_model(i_components)
-                logL = new_model.score(self.X, self.lengths)
-
-                #Calculate all other words average score
-                partial_score = 0
-                count = 0
-                for word in self.words:
-                    if word != self.this_word:
-                        new_X, new_lengths = self.hwords[word]
-                        try:
-                            partial_score += hmm_model.score(new_X, new_lengths)
-                            count += 1
-                        except:
-                            pass
-                if count > 0:
-                    logAllButword = partial_score/count
-                else:
-                    logAllButword = 0
-
-                #Calculate the total score
-                new_score = logL - logAllButword
-                #Only keep the max value
-                best_score, best_model = max((best_score,best_model),(new_score,new_model))
-            except:
-                pass
-
-        return best_model
-'''
-# initialize essential objects
+        # initialize essential objects
         best_score= float("-inf") # initialize at lowest possible number
         best_model= None
         # outer loop iterating over components
-        for component_num in range(self.min_n_components, self.max_n_components + 1):
+        for compo_num in range(self.min_n_components, self.max_n_components + 1):
             words_left_scores= list()
 
             try:
-                model= self.base_model(component_num)
-                score= model.score(self.X, self.lengths) # log(P(X(i)) for this word
+                new_model= self.base_model(compo_num)
+                logL= new_model.score(self.X, self.lengths) # log(P(X(i)) for this word
+                                       
                 words= self.words # get all the words as dict with words as keys
                 # generate a dict of all words except ith word
                 words_left= words.copy() # copy the dict so we don't alter words dict
@@ -179,7 +139,7 @@ class SelectorDIC(ModelSelector):
                 for word in words_left:
                     X, lengths= self.hwords[word] # hwords is a dict with values of X and length for each key (word)
                     try:
-                        words_left_scores.append(model.score(X, lengths)) # log(P(X(i)) for this word
+                        words_left_scores.append(new_model.score(X, lengths)) # log(P(X(i)) for this word
                     except:
                         pass
 
@@ -189,17 +149,14 @@ class SelectorDIC(ModelSelector):
                 normalized_words_left_score= words_left_score/M
 
                 # update best score
-                DIC= score - words_left_score
+                DIC= logL - words_left_score
                 if DIC > best_score:
                     best_score= DIC
                     best_model= model
             except:
                 pass
         return best_model
-'''
-        # TODO implement model selection based on DIC scores
-        #raise NotImplementedError
-        
+
 
 
 class SelectorCV(ModelSelector):
@@ -209,9 +166,9 @@ class SelectorCV(ModelSelector):
         warnings.filterwarnings("ignore", category=DeprecationWarning)
         
         
-        ''' At the begining best_score and best_hidden_state '''
+        ''' At the begining best_score and best_state '''
         best_score = float("-inf")
-        best_hidden_s = None
+        best_state = None
         
         '''Number of folds. Must be at least 2. If only 1 sequence provided, then
            that full dataset is used for both train and test'''
@@ -221,10 +178,10 @@ class SelectorCV(ModelSelector):
         
         
         ''' Loop over number of hidden states '''
-        for hidden_s in range(self.min_n_components, self.max_n_components + 1):
+        for compo_num in range(self.min_n_components, self.max_n_components + 1):
             if len(self.sequences) == 1:
                 try :
-                    hmm_model = GaussianHMM(n_components=hidden_s, covariance_type="diag", n_iter=1000,
+                    hmm_model = GaussianHMM(n_components=compo_num, covariance_type="diag", n_iter=1000,
                                             random_state=self.random_state, verbose=False).fit(self.X, self.lengths)
                     new_score = hmm_model.score(self.X, self.lengths)
                 except:
@@ -237,7 +194,7 @@ class SelectorCV(ModelSelector):
                         '''Combining the train set with the sequence '''
                         X_train, lengths_train = combine_sequences(cv_train_idx, self.sequences)
                         '''Create the HMM model using training data set '''
-                        trained_model = GaussianHMM(n_components=hidden_s, covariance_type="diag", n_iter=1000,
+                        trained_model = GaussianHMM(n_components=compo_num, covariance_type="diag", n_iter=1000,
                                             random_state=self.random_state, verbose=False).fit(X_train, lengths_train)
                         '''Combining the test set with the sequence '''
                         X_test, lengths_test = combine_sequences(cv_test_idx, self.sequences)
@@ -255,12 +212,12 @@ class SelectorCV(ModelSelector):
                 
             if new_score > best_score:
                 best_score = new_score
-                best_hidden_s = hidden_s
+                best_state = compo_num
                 
-        if best_hidden_s == 0:
+        if best_state == 0:
             return self.base_model(self.n_constant)
         else:
-            return self.base_model(best_hidden_s) 
+            return self.base_model(best_state) 
                 
 
 
