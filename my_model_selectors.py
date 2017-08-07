@@ -123,7 +123,6 @@ class SelectorDIC(ModelSelector):
         best_score = float("-inf")
         best_model = None    
         
-        # outer loop iterating over components
         for compo_num in range(self.min_n_components, self.max_n_components + 1):
             words_left_scores= []
 
@@ -132,29 +131,28 @@ class SelectorDIC(ModelSelector):
                 new_model= self.base_model(compo_num)
                 logL= new_model.score(self.X, self.lengths) 
                                        
-                words= self.words # get all the words as dict with words as keys
-                # generate a dict of all words except ith word
-                words_left= words.copy() # copy the dict so we don't alter words dict
-                words_left.pop(self.this_word) # remove this word
-                # iterate over all the other words and sum up P (logL)
                 for word in self.words:
                     if word !=self.this_word:
-                        X_new, lengths_new= self.hwords[word] # hwords is a dict with values of X and length for each key (word)
+                        '''hwords is a dict with values of X and length for each key (word)'''
+                        X_new, lengths_new= self.hwords[word] 
                         try:
-                            words_left_scores.append(new_model.score(X_new, lengths_new)) # log(P(X(i)) for this word
+                            ''' log(P(X(all but i)'''
+                            words_left_scores.append(new_model.score(X_new, lengths_new)) 
                         except:
                             pass
+                        
+                '''Calculating the average of all other words'''
+                if words_left_scores:
+                    words_left_average= np.mean(words_left_scores)
+                else:
+                    words_left_average=0
 
-                # put it all together
-                M= len(words_left)
-                words_left_score= np.sum(words_left_scores)
-                normalized_words_left_score= words_left_score/M
-
-                # update best score
-                DIC= logL - words_left_score
+                ''' Discriminative Information Criterion, 
+                    DIC = log(P(X(i)) - 1/(M-1)SUM(log(P(X(all but i)) '''
+                DIC= logL - words_left_average
                 if DIC > best_score:
                     best_score= DIC
-                    best_model= model
+                    best_model= new_model
             except:
                 pass
         return best_model
