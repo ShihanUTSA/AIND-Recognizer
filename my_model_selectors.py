@@ -119,29 +119,31 @@ class SelectorDIC(ModelSelector):
     def select(self):
         warnings.filterwarnings("ignore", category=DeprecationWarning)
         
-            
-        # initialize essential objects
-        best_score= float("-inf") # initialize at lowest possible number
-        best_model= None
+        ''' At the begining best_score and best_state '''
+        best_score = float("-inf")
+        best_model = None    
+        
         # outer loop iterating over components
         for compo_num in range(self.min_n_components, self.max_n_components + 1):
-            words_left_scores= list()
+            words_left_scores= []
 
             try:
+                ''' Calculating log(P(X(i))) '''
                 new_model= self.base_model(compo_num)
-                logL= new_model.score(self.X, self.lengths) # log(P(X(i)) for this word
+                logL= new_model.score(self.X, self.lengths) 
                                        
                 words= self.words # get all the words as dict with words as keys
                 # generate a dict of all words except ith word
                 words_left= words.copy() # copy the dict so we don't alter words dict
                 words_left.pop(self.this_word) # remove this word
                 # iterate over all the other words and sum up P (logL)
-                for word in words_left:
-                    X, lengths= self.hwords[word] # hwords is a dict with values of X and length for each key (word)
-                    try:
-                        words_left_scores.append(new_model.score(X, lengths)) # log(P(X(i)) for this word
-                    except:
-                        pass
+                for word in self.words:
+                    if word !=self.this_word:
+                        X_new, lengths_new= self.hwords[word] # hwords is a dict with values of X and length for each key (word)
+                        try:
+                            words_left_scores.append(new_model.score(X_new, lengths_new)) # log(P(X(i)) for this word
+                        except:
+                            pass
 
                 # put it all together
                 M= len(words_left)
