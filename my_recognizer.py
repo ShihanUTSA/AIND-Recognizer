@@ -20,29 +20,69 @@ def recognize(models: dict, test_set: SinglesData):
     warnings.filterwarnings("ignore", category=DeprecationWarning)
     probabilities = []
     guesses = []
-    for i, _ in test_set.get_all_Xlengths().items():
-        X_test, Xlength_test = test_set.get_item_Xlengths(i)
-        #Create a new empty dict
-        scores = {}
-        best_word = ""
-        best_score = float("-inf")
-        #Iterate over all items
+    ''' Iterate over sequences to get X and length of X '''
+    for index, sequence in test_set.get_all_Xlengths().items():
+        X_test, Xlength_test = test_set.get_item_Xlengths(index)
+        ''' Dictionary to store word and score '''
+        words_score = dict()
         for word, model in models.items():
-            #In case I can't get a new score, I give the worst score possible
-            new_score = float("-inf")
             try: 
-                #Get a new score
-                new_score = model.score(X_test, Xlength_test)
+                ''' Get the new score '''
+                words_score[word] = model.score(X_test, Xlength_test)
             except:
-                pass
-            #I keep track of the best guess so far
-            if new_score >= best_score:
-                best_score = new_score
-                best_word = word
-            #Add this to the dict
-            scores[word] = new_score
-        #I don't have to order if I use append
-        probabilities.append(scores)
-        guesses.append(best_word)
-    return probabilities,guesses
+                words_score[word]= float('-inf')
+                       
+        probabilities.append(words_score)
+    
+    for probs in probabilities:
+        guesses.append(max(probs, key=probs.get))
 
+    return probabilities,guesses
+'''
+############################################################################################################
+    test_sequences = list(test_set.get_all_Xlengths().values())
+
+    for test_X, test_Xlength in test_sequences:
+        words_logL = dict()
+        for word, hmm_model in models.items():
+            try:
+                words_logL[word] = hmm_model.score(test_X, test_Xlength)
+            except:
+                words_logL[word]= -1000000
+                continue
+        probabilities.append(words_logL)
+
+
+    for probs in probabilities:
+        guesses.append(max(probs, key=probs.get))
+
+    return probabilities, guesses
+####################################################################################
+warnings.filterwarnings("ignore", category=DeprecationWarning)
+    probabilities = []
+    guesses = []
+    
+    # get all sequences in the test set
+    all_sequences= test_set.get_all_sequences()
+
+    # iterate over sequences get X and lengths for each key
+    for index, sequence in all_sequences.items():
+        X, lengths= test_set.get_item_Xlengths(index)
+        guess_probs= dict() # container to hold the word:probabilities for each sequnence for each model
+
+      # iterate over each word:model pair where the model is the trained model for that word
+        for word, word_model in models.items():
+            try:
+                prob= word_model.score(X, lengths)
+                guess_probs[word]= prob
+            except:
+                guess_probs[word]= float('-inf') # lowest possible score
+
+        probabilities.append(guess_probs) # add dictonary to list
+        # get return key with highest score as best guess
+        # thanks stack overflow! http://stackoverflow.com/questions/268272/getting-key-with-maximum-value-in-dictionary
+        best_guess= max(guess_probs, key=guess_probs.get)
+        guesses.append(best_guess)
+
+    return probabilities, guesses
+    '''
